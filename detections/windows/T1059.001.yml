@@ -1,0 +1,45 @@
+schema_version: 1
+id: T1059.001                   # MITRE technique ID; also the Splunk saved search name
+status: experimental            # experimental | test | production | deprecated
+author: Bako Security
+created: 2026-09-18
+modified: 2026-09-18
+version: 1
+
+environment: attack-range       # homelab | attack-range
+
+attack:
+  tactics: [execution, defense-evasion]
+  techniques: [T1059.001]       # Command and Scripting Interpreter: PowerShell
+
+data_sources: [Sysmon]
+
+search: |
+  index=sysmon EventCode=1 CommandLine="*-encodedcommand*"
+
+schedule:
+  cron: "*/15 * * * *"
+  earliest: -15m
+  latest: now
+
+# No throttle: the search window (-15m) does not overlap the schedule
+# (every 15m), so an event is only ever evaluated once.
+
+severity: high                  # informational | low | medium | high | critical
+
+alert:
+  title: "Encoded PowerShell execution (T1059.001)"
+  description: >
+    PowerShell executed with -EncodedCommand, a well-known obfuscation pattern
+    for execution and defence evasion. Decode the base64 payload, then check
+    the parent process and whether the command ran interactively or from a
+    scheduled task, service or remote session.
+  tags: [T1059.001, sysmon, attack-range]
+
+triage:
+  false_positives:
+    - Management tooling that legitimately invokes encoded commands
+    - Installers and vendor scripts wrapping PowerShell
+
+references:
+  - https://attack.mitre.org/techniques/T1059/001/

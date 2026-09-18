@@ -35,23 +35,48 @@ Start from [detection_template.yml](detection_template.yml).
 | `alert.tags` | yes | list | Convention: `[<id>, <data source>, <environment>]`. |
 | `triage.*`, `references` | no | | Not consumed by the pipeline yet. |
 
-## How fields map to what `send_to_iris.py` reads
+## How fields reach IRIS
 
-The alert action looks up `metadata/<search_name>.yaml` at run time and reads
-five keys. The pipeline generates that file from the detection YAML:
+The pipeline writes the IRIS metadata onto the Splunk saved search itself, as
+alert action parameters. There is no sidecar metadata file: the search and its
+metadata are one object, so they cannot drift apart, and deploying a detection
+is a single REST call that needs no Splunk restart and no access to the Splunk
+host.
 
-| Generated key | Source |
-|---------------|--------|
-| filename `<search_name>.yaml` | `id` |
-| `alert_title` | `alert.title` |
-| `alert_description` | `alert.description` |
-| `severity_id` | `severity`: informational=2, low=3, medium=4, high=5, critical=6 |
-| `customer_id` | `environment`: homelab=1, attack-range=2 (mapping kept in the private repo) |
-| `tags` | `alert.tags` joined with `,` (no spaces) |
+| Saved search key | Source |
+|------------------|--------|
+| `action.send_to_iris.param.alert_title` | `alert.title` |
+| `action.send_to_iris.param.alert_description` | `alert.description` |
+| `action.send_to_iris.param.severity_id` | `severity`: informational=2, low=3, medium=4, high=5, critical=6 |
+| `action.send_to_iris.param.customer_id` | `environment` (mapping kept in the private repo) |
+| `action.send_to_iris.param.tags` | `alert.tags` joined with `,` (no spaces) |
+| `action.send_to_iris.param.detection_id` / `detection_version` | `id` / `version`, as provenance |
 
-Splunk side, generated into `savedsearches.conf`: `search`, `cron_schedule`,
-`dispatch.earliest_time` / `latest_time`, the alert trigger, suppression,
-`disabled` (from `status`), and the IRIS alert action.
+Because a tag list is comma-joined, a tag may not itself contain a comma. The
+pipeline rejects one that does.
+
+## What the pipeline sets on the Splunk side
+
+Generated from the detection: `search`, `cron_schedule`,
+`dispatch.earliest_time` / `latest_time`, the alert trigger, suppression from
+`throttle`, `alert.severity`, and `disabled` from `status` (only `production`
+deploys enabled).
+
+Set on every detection regardless of the YAML, because Splunk's defaults are
+wrong for scheduled detections:
+
+| Setting | Value | Why |
+|---------|-------|-----|
+| `alert.digest_mode` | `1` | Splunk defaults to `0`, which runs the alert action once **per result row** — twenty matched events would open twenty IRIS alerts. Digest mode sends one alert carrying all results. |
+| `realtime_schedule` | `0` | Splunk defaults to `1`, which makes the scheduler **skip** runs it has fallen behind on instead of running them late, silently dropping coverage for those windows. `0` backfills. |
+| `alert_type` | `number of results` | **Not** `number of events`. For a transforming search — which is most detections — Splunk's `number of events` counts what the base search matched *before* the transform. Measured in the lab, `EventCode=4625 \| stats count by user \| where count > 99999` gives eventCount=55 and resultCount=0, so a detection using `number of events` fires on every run while producing no results. Override per detection with `trigger.type`. |
+| `alert.track` | `1` | The trigger appears in Splunk's Triggered Alerts. |
+| `schedule_window` | `0` | Run on the scheduled minute, so the search window stays aligned with the cron interval. |
+
+A consequence of digest mode: **one detection firing produces one IRIS alert,
+however many events matched.** Write `alert.description` for that — describe the
+pattern, not a single event. The matched rows are attached to the alert (capped
+at 100).
 
 ## Deliberately not in this file
 
