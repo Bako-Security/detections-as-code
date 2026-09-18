@@ -1,0 +1,47 @@
+schema_version: 1
+id: T1110.001                   # MITRE technique ID; also the Splunk saved search name
+status: experimental            # experimental | test | production | deprecated
+author: Bako Security
+created: 2026-09-18
+modified: 2026-09-18
+version: 1
+
+environment: attack-range       # homelab | attack-range
+
+attack:
+  tactics: [credential-access]
+  techniques: [T1110.001]       # Brute Force: Password Guessing
+
+data_sources: [Windows Security Event Log]
+
+search: |
+  index=wineventlog source="xmlwineventlog:security" EventCode=4625
+  | stats count by user, host
+  | where count > 5
+
+schedule:
+  cron: "*/5 * * * *"
+  earliest: -1h
+  latest: now
+
+throttle:
+  period: 1h
+  fields: [user]
+
+severity: medium                # informational | low | medium | high | critical
+
+alert:
+  title: "Password guessing against a Windows account (T1110.001)"
+  description: >
+    More than five failed logons (EventCode 4625) for the same account on the
+    same host within one hour. Check whether a successful logon (4624) follows
+    the failures, and identify the source IP and logon type.
+  tags: [T1110.001, windows-security, attack-range]   # convention: id, data source, environment
+
+triage:                         # optional, not consumed by the pipeline yet
+  false_positives:
+    - Service account with an expired or rotated password
+    - User repeatedly mistyping a password
+
+references:
+  - https://attack.mitre.org/techniques/T1110/001/

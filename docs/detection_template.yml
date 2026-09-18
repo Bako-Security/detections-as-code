@@ -1,0 +1,47 @@
+# ---------------------------------------------------------------------------
+# Detection template. Copy to detections/<platform>/<id>.yml
+# The filename must match `id`. See docs/schema.md for field details.
+# ---------------------------------------------------------------------------
+schema_version: 1
+id: TXXXX.XXX                   # MITRE technique ID (optional -suffix if you need
+                                # two detections for one technique, e.g. T1110.001-linux-ssh)
+status: experimental            # experimental | test | production | deprecated
+author: Bako Security
+created: YYYY-MM-DD
+modified: YYYY-MM-DD
+version: 1
+
+environment: attack-range       # homelab | attack-range
+
+attack:
+  tactics: []                   # e.g. [credential-access]
+  techniques: [TXXXX.XXX]       # must include the technique in `id`
+
+data_sources: []                # e.g. [Windows Security Event Log]
+
+search: |
+  index=<index> EventCode=<code>
+  | <your search logic>
+
+schedule:
+  cron: "*/5 * * * *"
+  earliest: -1h
+  latest: now
+
+# throttle:                     # optional
+#   period: 1h
+#   fields: [user]
+
+severity: medium                # informational | low | medium | high | critical
+
+alert:
+  title: "Short human-readable name (TXXXX.XXX)"
+  description: >
+    What this detects and why it matters. Keep it useful for whoever
+    triages the alert in IRIS, not just a restatement of the title.
+  tags: [TXXXX.XXX, <data_source>, <environment>]
+
+# triage:                       # optional
+#   false_positives: []
+
+# references: []

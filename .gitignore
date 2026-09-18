@@ -1,0 +1,24 @@
+# Secrets and credentials - this repo is PUBLIC
+*.key
+*.pem
+*api_key*
+*apikey*
+*.env
+.env*
+secrets/
+credentials*
+
+# Splunk environment-specific state (never version these)
+local/
+local.meta
+metadata/local.meta
+*.conf.local
+
+# Python / editor / OS
+__pycache__/
+*.pyc
+.venv/
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
