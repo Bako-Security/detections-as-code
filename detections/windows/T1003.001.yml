@@ -1,0 +1,56 @@
+schema_version: 1
+id: T1003.001                   # MITRE technique ID; also the Splunk saved search name
+status: experimental            # experimental | test | production | deprecated
+author: Bako Security
+created: 2026-09-18
+modified: 2026-09-18
+version: 1
+
+environment: attack-range       # homelab | attack-range
+
+attack:
+  tactics: [credential-access]
+  techniques: [T1003.001]       # OS Credential Dumping: LSASS Memory
+
+data_sources: [Sysmon]
+
+# Sysmon EventCode 10 (ProcessAccess). Relies on the sysmon-modular config
+# logging lsass as the target, and on it having already dropped known-benign
+# system callers, so no exclusions are repeated here. Aggregated per host and
+# source process so the single digest alert reads as one row per opener.
+search: |
+  index=sysmon EventCode=10 TargetImage="*\\lsass.exe"
+  | stats count, values(GrantedAccess) as GrantedAccess, min(_time) as first_seen, max(_time) as last_seen by host, SourceImage
+  | convert ctime(first_seen) ctime(last_seen)
+
+schedule:
+  cron: "*/15 * * * *"
+  earliest: -15m
+  latest: now
+
+# No throttle: the search window (-15m) does not overlap the schedule
+# (every 15m), so an event is only ever evaluated once.
+
+severity: high                  # informational | low | medium | high | critical
+
+alert:
+  title: "Process opened a handle to LSASS (T1003.001)"
+  description: >
+    One or more processes opened a handle to lsass.exe (Sysmon EventCode 10).
+    This is how credential dumpers (Mimikatz, procdump, comsvcs.dll MiniDump,
+    nanodump) read LSASS memory. Start with SourceImage: is it a known
+    security or system component, or an unexpected binary in a user-writable
+    path? Then check GrantedAccess: masks that include the VM_READ bit (0x10),
+    such as 0x1010, 0x1410, 0x1438 or 0x1fffff, allow reading memory and are
+    the ones that matter. Pivot to the source process's parent and command
+    line (EventCode 1) and look for a dump file written to disk (EventCode 11).
+
+triage:
+  false_positives:
+    - EDR, AV and other security agents that inspect LSASS
+    - Windows components and monitoring agents opening LSASS with low-privilege masks (for example 0x1000 or 0x400)
+    - Backup and system-management software
+
+references:
+  - https://attack.mitre.org/techniques/T1003/001/
+  - https://github.com/olafhartong/sysmon-modular
