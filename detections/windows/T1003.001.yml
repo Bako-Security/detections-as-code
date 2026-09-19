@@ -44,7 +44,7 @@ alert:
     such as 0x1010, 0x1410, 0x1438 or 0x1fffff, allow reading memory and are
     the ones that matter. Pivot to the source process's parent and command
     line (EventCode 1) and look for a dump file written to disk (EventCode 11).
-
+  tags: [T1003.001, sysmon, attack-range]
 triage:
   false_positives:
     - EDR, AV and other security agents that inspect LSASS
