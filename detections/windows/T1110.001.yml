@@ -26,7 +26,7 @@ schedule:
 
 throttle:
   period: 1h
-  fields: [user]
+  fields: [user, host]
 
 severity: medium                # informational | low | medium | high | critical
 

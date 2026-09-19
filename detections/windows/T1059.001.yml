@@ -1,6 +1,6 @@
 schema_version: 1
 id: T1059.001                   # MITRE technique ID; also the Splunk saved search name
-status: experimental            # experimental | test | production | deprecated
+status: production            # experimental | test | production | deprecated
 author: Bako Security
 created: 2026-09-18
 modified: 2026-09-18
